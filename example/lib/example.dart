@@ -1,4 +1,4 @@
-import 'package:netsells_flutter_analysis/netsells_flutter_analysis.dart';
+import 'package:hedgehoglab_flutter_analysis/hedgehoglab_flutter_analysis.dart';
 
 Future<void> main() async {
   /// Await async functions.

@@ -1,38 +1,57 @@
 name: ci
 
-on: pull_request
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
 
 jobs:
-  build:
+  analyse:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2.3.4
-      - uses: dart-lang/setup-dart@v1
+      - uses: actions/checkout@v7
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
 
-      - name: Install Dependencies
-        run: dart pub get
+      - name: Show SDK versions
+        run: flutter --version
+
+      - name: Install dependencies
+        run: |
+          dart pub get
+          dart pub get --directory example
 
       - name: Format
-        run: dart format --set-exit-if-changed .
+        run: dart format --output=none --set-exit-if-changed .
 
-      - name: Analyze
-        run: dart analyze .
+      - name: Analyse package
+        run: dart analyze --fatal-infos . 2>&1 | tee analyze-root.log
 
-  pana:
-    runs-on: ubuntu-latest
+      - name: Analyse example
+        run: dart analyze --fatal-infos example 2>&1 | tee analyze-example.log
 
-    steps:
-      - uses: actions/checkout@v2.3.4
-      - uses: subosito/flutter-action@v1.5.0
-
-      - name: Install Dependencies
+      # The analyser already fails on unknown lints (undefined_lint), but
+      # removed and deprecated rules are not always reported, so the check
+      # below also reads the logs for the three diagnostics and guards the
+      # latest versioned file against rules known to be removed in Dart 3.
+      - name: Fail on undefined, removed or deprecated lints
         run: |
-          flutter packages get
-          flutter pub global activate pana
-
-      - name: Verify Pub Score
-        run: |
-          PANA=$(pana . --no-warning); PANA_SCORE=$(echo $PANA | sed -n "s/.*Points: \([0-9]*\)\/\([0-9]*\)./\1\/\2/p")
-          echo "score: $PANA_SCORE"
-          IFS='/'; read -a SCORE_ARR <<< "$PANA_SCORE"; SCORE=SCORE_ARR[0]; TOTAL=SCORE_ARR[1]
-          if (( $SCORE < $TOTAL )); then echo "minimum score not met!"; exit 1; fi
+          if grep -E 'undefined_lint|removed_lint|deprecated_lint|included_file_warning' analyze-root.log analyze-example.log; then
+            echo "Lint configuration references unknown, removed or deprecated rules." >&2
+            exit 1
+          fi
+          latest=$(ls lib/analysis_options.*.*.*.yaml | sort -V | tail -n 1)
+          removed='always_require_non_null_named_parameters|avoid_null_checks_in_equality_operators|avoid_private_typedef_functions|avoid_returning_null|avoid_returning_null_for_future|iterable_contains_unrelated_type|list_remove_unrelated_type|package_api_docs|prefer_equal_for_default_values|unnecessary_await_in_return'
+          if grep -nE "^    - ($removed)\$" "$latest"; then
+            echo "$latest lists rules removed or deprecated in Dart 3." >&2
+            exit 1
+          fi

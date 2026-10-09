@@ -1,11 +1,10 @@
-name: netsells_flutter_analysis_example
+name: hedgehoglab_flutter_analysis_example
 version: 0.0.1
 publish_to: none
 
 environment:
-  sdk: ">=3.0.0 <4.0.0"
-  flutter: ">=3.10.0"
+  sdk: ">=3.13.0 <4.0.0"
 
 dependencies:
-  netsells_flutter_analysis:
+  hedgehoglab_flutter_analysis:
     path: ../
