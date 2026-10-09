@@ -2,7 +2,7 @@
 
 An analyzer plugin that enforces hedgehog lab Flutter standards and code-metric limits from `dart analyze`. It costs nothing until a rule is violated, which makes it the cheapest layer to hold a standard at: a developer or coding agent sees the warning in the editor or in CI and fixes it, with no prose in context and no review round trip.
 
-It is built on the `analysis_server_plugin` API (Dart 3.10 / Flutter 3.38 and later; developed against Dart 3.13 / Flutter 3.47), the same system `riverpod_lint` 3 uses. It is separate from the root `netsells_flutter_analysis` lint set and needs nothing from it.
+It is built on the `analysis_server_plugin` API (Dart 3.10 / Flutter 3.38 and later; developed against Dart 3.13 / Flutter 3.47), the same system `riverpod_lint` 3 uses. It is separate from the root `hedgehoglab_flutter_analysis` lint set and needs nothing from it.
 
 ## Rules
 
