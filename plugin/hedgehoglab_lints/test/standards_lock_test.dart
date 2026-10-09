@@ -11,6 +11,8 @@ import '../tool/standards_pin.dart';
 
 /// Offline checks that `standards.lock.json` and the registered rules agree.
 /// `tool/verify_standards_pin.dart` checks the lock against the catalogue.
+final idPrefix = RegExp(r'^([A-Z][A-Z0-9-]*-[0-9]{3}):');
+
 void main() {
   final lock =
       jsonDecode(File('standards.lock.json').readAsStringSync()) as Map;
@@ -40,9 +42,8 @@ void main() {
 
   test('every standards rule class ID is in the lock, naming that lint', () {
     for (final code in standardsRules) {
-      final id = RegExp(
-        r'^([A-Z][A-Z0-9-]*-[0-9]{3}):',
-      ).firstMatch(code.problemMessage)?.group(1);
+      final match = idPrefix.firstMatch(code.problemMessage);
+      final id = match?.group(1);
       expect(id, isNotNull, reason: '${code.lowerCaseName} has no ID');
       expect(pinned, contains(id));
       expect(pinned[id]!.lints, contains(code.lowerCaseName));
