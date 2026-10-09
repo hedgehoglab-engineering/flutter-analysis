@@ -1,11 +1,9 @@
-name: netsells_flutter_analysis
-version: 5.0.0
-description: Static analysis rules for Dart and Flutter used at Netsells
-repository: https://github.com/netsells/flutter-analysis
-issue_tracker: https://github.com/netsells/flutter-analysis
-homepage: https://github.com/netsells/flutter-analysis
-documentation: https://github.com/netsells/flutter-analysis
+name: hedgehoglab_flutter_analysis
+version: 6.0.0
+description: Static analysis rules for Dart and Flutter used at hedgehog lab, forked from Netsells flutter-analysis.
+repository: https://github.com/hedgehoglab-engineering/flutter-analysis
+issue_tracker: https://github.com/hedgehoglab-engineering/flutter-analysis/issues
+publish_to: none
 
 environment:
-  sdk: ">=3.0.0 <4.0.0"
-  flutter: ">=3.10.0"
+  sdk: ">=3.13.0 <4.0.0"

@@ -1,6 +1,7 @@
-/// Dart analyzer settings and best practices
-/// used internally at [Netsells](https://netsells.co.uk).
-library netsells_flutter_analysis;
+/// Dart analyzer settings and best practices used internally at
+/// [hedgehog lab](https://hedgehoglab.com), forked from Netsells'
+/// flutter-analysis.
+library;
 
 /// Indicates to tools that `Future` is intentionally not `await`-ed.
 ///
