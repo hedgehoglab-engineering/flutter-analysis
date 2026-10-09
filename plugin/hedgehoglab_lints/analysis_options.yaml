@@ -4,3 +4,6 @@ analyzer:
   language:
     strict-casts: true
     strict-raw-types: true
+  exclude:
+    # Deliberately violating code, analysed on its own by the CI example job.
+    - example/**
