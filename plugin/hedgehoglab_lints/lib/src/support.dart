@@ -6,17 +6,71 @@ import 'package:analyzer/dart/ast/token.dart';
 import 'package:analyzer/dart/ast/visitor.dart';
 import 'package:analyzer/dart/element/type.dart';
 import 'package:analyzer/source/line_info.dart';
+import 'package:path/path.dart' as p;
 
 /// Files produced by code generation. Rules skip them: the author cannot act
-/// on a diagnostic there.
+/// on a diagnostic there. Reads the defining unit because `currentUnit` is
+/// `null` while node processors are being registered.
 bool isGeneratedFile(RuleContext context) {
-  final path = context.currentUnit?.file.path ?? '';
+  final path = context.definingUnit.file.path;
   return path.endsWith('.g.dart') || path.endsWith('.freezed.dart');
 }
 
-/// Whether the rule should look at this file at all (`lib/`, hand-written).
-bool shouldAnalyse(RuleContext context) =>
-    context.isInLibDir && !isGeneratedFile(context);
+/// Whether the rule should look at this file at all: hand-written, under the
+/// analysed package's own `lib/`.
+///
+/// `RuleContext.isInLibDir` is not enough. It accepts any path with a `lib`
+/// segment, so a Swift Package Manager checkout such as
+/// `build/ios/SourcePackages/firebase_analytics-12.6.0/lib/` was analysed
+/// whenever `build/` was not excluded. Here the path is resolved against the
+/// package root, so only `<root>/lib/**` qualifies, and anything under a
+/// `build/` or `.dart_tool/` directory (including one that holds its own
+/// `lib/`) is skipped.
+bool shouldAnalyse(RuleContext context) {
+  if (isGeneratedFile(context)) return false;
+  final file = context.definingUnit.file;
+  final root = context.package?.root.path;
+  if (root == null) return false;
+  final pathContext = file.provider.pathContext;
+  return isOwnLibFile(file.path, root, pathContext) &&
+      !isBuildOutput(
+        root,
+        pathContext,
+        (dir) =>
+            file.provider.getFile(pathContext.join(dir, 'pubspec.yaml')).exists,
+      );
+}
+
+/// Whether the package at [root] lives inside another package's `build/` or
+/// `.dart_tool/` directory, which is where checkouts such as Swift Package
+/// Manager sources land. Such a package has a `pubspec.yaml` of its own, so
+/// the analyzer treats it as the package and [isOwnLibFile] alone would accept
+/// its `lib/`. [hasPubspec] says whether a directory holds a `pubspec.yaml`.
+bool isBuildOutput(
+  String root,
+  p.Context pathContext,
+  bool Function(String directory) hasPubspec,
+) {
+  var dir = root;
+  while (true) {
+    final parent = pathContext.dirname(dir);
+    if (parent == dir) return false;
+    final name = pathContext.basename(dir);
+    if ((name == 'build' || name == '.dart_tool') && hasPubspec(parent)) {
+      return true;
+    }
+    dir = parent;
+  }
+}
+
+/// Whether [path] is a hand-written source under `<[root]>/lib/` and not under
+/// a `build/` or `.dart_tool/` directory at any depth below the root.
+bool isOwnLibFile(String path, String root, p.Context pathContext) {
+  if (!pathContext.isWithin(root, path)) return false;
+  final segments = pathContext.split(pathContext.relative(path, from: root));
+  if (segments.first != 'lib') return false;
+  return !segments.any((s) => s == 'build' || s == '.dart_tool');
+}
 
 /// The last identifier of an annotation name: `riverpod` for `@riverpod`,
 /// `@r.riverpod` and `@Riverpod(keepAlive: true)` (as `Riverpod`).

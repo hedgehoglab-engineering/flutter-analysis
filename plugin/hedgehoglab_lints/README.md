@@ -8,6 +8,8 @@ It is built on the `analysis_server_plugin` API (Dart 3.10 / Flutter 3.38 and la
 
 All rules are warnings, are enabled as soon as the plugin is, and apply to hand-written files under `lib/` (generated `*.g.dart` and `*.freezed.dart` files are skipped).
 
+"Under `lib/`" means the analysed package's own `lib/`, resolved against its package root. Nothing else is reported: not `test/`, not a nested `example/lib/`, not anything under a `build/` or `.dart_tool/` directory, and not another package's `lib/` that happens to sit inside one (a Swift Package Manager checkout at `build/ios/SourcePackages/<pkg>/lib/` is the case that bit a trial adoption). This holds whether or not the project excludes `build/**` in its own options.
+
 Standards IDs (`STATE-002` and so on) are the rule IDs of the Quilltrail standards catalogue, at the catalogue revision recorded in [`standards.lock.json`](standards.lock.json) (repository, commit, tag and policy version). Each standards lint is also pinned to the rule's `content_hash`, computed the way Quilltrail computes it (SHA-256 of the rule's title, tag and trimmed body). When a standard is edited its hash changes, `tool/verify_standards_pin.dart` fails, and the lint gets re-reviewed against the new text before the lock is updated. See "Standards pin" below.
 
 | Rule | Standard | Reports |
