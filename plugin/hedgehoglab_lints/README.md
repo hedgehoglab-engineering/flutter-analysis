@@ -47,7 +47,7 @@ plugins:
       ref: hedgehoglab_lints-v0.1.0
 ```
 
-For local development use `path: /absolute/or/relative/path/to/hedgehoglab_lints` instead of `git:` (see `example/analysis_options.yaml`). Restart the Dart analysis server after changing the `plugins:` section. The first run resolves the plugin's dependencies and takes about 20 seconds; later runs are fast.
+The `hedgehoglab_lints-v0.1.0` tag is created on release, once the PR that adds the plugin has merged; until then the `git:` form cannot resolve and a project should use the `path:` form below. For local development use `path: /absolute/or/relative/path/to/hedgehoglab_lints` instead of `git:` (see `example/analysis_options.yaml`). Restart the Dart analysis server after changing the `plugins:` section. The first run resolves the plugin's dependencies and takes about 20 seconds; later runs are fast.
 
 Rules are warning rules, so they are on by default. To switch one off in a project:
 
