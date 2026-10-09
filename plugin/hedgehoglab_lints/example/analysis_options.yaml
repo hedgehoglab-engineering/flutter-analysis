@@ -1,14 +1,5 @@
-# The plugin must be listed here, in the consuming project's own file.
-# See ../README.md for the include-vs-root finding.
-analyzer:
-  exclude:
-    - build/**
-    - android/**
-    - ios/**
-    - web/**
-    - windows/**
-    - macos/**
-    - linux/**
+# The plugin is listed here, in the consuming project's own file. See
+# ../README.md ("Enabling it") for the git form and the include findings.
 plugins:
   hedgehoglab_lints:
     path: ..
