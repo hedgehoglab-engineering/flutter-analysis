@@ -78,7 +78,7 @@ plugins:
       ref: hedgehoglab_lints-v0.1.0
 ```
 
-Both loaded together in a test project. The `riverpod_lint` entry in `dev_dependencies` can be dropped once it is listed here.
+Both loaded together in a test project. Once `riverpod_lint` is listed under `plugins:`, remove it from `pubspec.yaml` (`dependencies` or `dev_dependencies`, wherever it was), as the bnf-flutter trial adoption did.
 
 ## Versioning
 
