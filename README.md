@@ -16,13 +16,34 @@ dev_dependencies:
       ref: 6.0.0
 ```
 
-Then include the versioned file in `analysis_options.yaml`:
+Then use this as the project's `analysis_options.yaml`:
 
 ```yaml
 include: package:hedgehoglab_flutter_analysis/analysis_options.6.0.0.yaml
+
+analyzer:
+  exclude:
+    - build/**
+    - android/**
+    - ios/**
+    - web/**
+    - windows/**
+    - macos/**
+    - linux/**
+
+plugins:
+  hedgehoglab_lints:
+    git:
+      url: https://github.com/hedgehoglab-engineering/flutter-analysis
+      path: plugin/hedgehoglab_lints
+      ref: hedgehoglab_lints-v0.1.0
 ```
 
-Run `flutter pub get`, then `flutter analyze`. Expect new findings on the first run: 6.0.0 turns on `strict-casts`, `strict-inference` and `strict-raw-types`.
+The seven excludes repeat what 6.0.0 already excludes, on purpose. Flutter 3.47's `flutter pub get` checks the project's own `analysis_options.yaml` for exactly these seven entries (it does not follow `include:`), and rewrites the file to add any that are missing (see `analysis_options_migration.dart` in `flutter_tools`). Keeping them in the project file stops the rewrite. Drop the `plugins:` block if the project is not adopting the [analyzer plugin](#analyzer-plugin). Its `hedgehoglab_lints-v0.1.0` tag is created on release, so the `git:` ref resolves only once the plugin PR has merged and been tagged.
+
+Run `flutter pub get`, then `dart analyze --fatal-infos`. Expect new findings on the first run: 6.0.0 turns on `strict-casts`, `strict-inference` and `strict-raw-types`.
+
+Use `dart analyze`, not `flutter analyze`, for CI and agent checks. `flutter analyze` on 3.47 returns before analyzer plugins have reported and drops their diagnostics intermittently (see the plugin README); `dart analyze` reports the same lint set reliably.
 
 Requires Dart 3.13 or later. The package is not published to pub.dev.
 
@@ -54,7 +75,7 @@ Each release that changes rules adds a new versioned file, `lib/analysis_options
 
 1. Add the dependency and replace the copied `linter:` block with the include line.
 2. Keep only project-specific `analyzer:` entries (extra excludes or severity changes) and `linter.rules` overrides. Anything that duplicates 6.0.0 can go.
-3. Run `flutter analyze` and compare with the previous result. The usual differences are the strict modes and the generated-code excludes.
+3. Make sure the project file lists the seven excludes shown under "Adopting it". Run `dart analyze --fatal-infos` and compare with the previous result. The usual differences are the strict modes and the generated-code excludes.
 
 ## Suppressing lints
 
@@ -80,6 +101,10 @@ linter:
   rules:
     lines_longer_than_80_chars: false
 ```
+
+## Analyzer plugin
+
+`plugin/hedgehoglab_lints/` is a separate package: an analyzer plugin that turns code-metric limits and the mechanically checkable Flutter standards into warnings from `dart analyze` (not `flutter analyze`, which drops them intermittently on 3.47). See its [README](plugin/hedgehoglab_lints/README.md). It is independent of the lint set above.
 
 ## Developing this package
 

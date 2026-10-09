@@ -1,0 +1,6 @@
+name: hedgehoglab_lints_example
+description: Demonstrates hedgehoglab_lints enabled in a consuming project.
+publish_to: none
+
+environment:
+  sdk: ^3.10.0

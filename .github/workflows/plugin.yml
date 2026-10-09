@@ -1,0 +1,62 @@
+name: plugin
+
+on:
+  pull_request:
+    paths:
+      - "plugin/**"
+      - ".github/workflows/plugin.yml"
+
+jobs:
+  hedgehoglab_lints:
+    runs-on: ubuntu-latest
+    env:
+      STANDARDS_READ_TOKEN: ${{ secrets.STANDARDS_READ_TOKEN }}
+    defaults:
+      run:
+        working-directory: plugin/hedgehoglab_lints
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+
+      - name: Install dependencies
+        run: dart pub get
+
+      - name: Format
+        run: dart format --output=none --set-exit-if-changed .
+
+      - name: Analyze
+        run: dart analyze
+
+      - name: Test
+        run: dart test
+
+      # Offline: the lock's rule IDs and lints are checked by `dart test`. The
+      # hash check fetches the pinned catalogue and needs a token that can read
+      # it, so it runs only where STANDARDS_READ_TOKEN is configured.
+      - name: Standards pin
+        if: env.STANDARDS_READ_TOKEN != ''
+        env:
+          GH_TOKEN: ${{ secrets.STANDARDS_READ_TOKEN }}
+        run: dart run tool/verify_standards_pin.dart
+
+      # End to end: the plugin, enabled from the example's analysis_options.yaml,
+      # must report every rule on violating code and nothing on clean code.
+      - name: Example project
+        working-directory: plugin/hedgehoglab_lints/example
+        run: |
+          dart pub get
+          dart analyze lib/clean.dart lib/stubs.dart
+          out="$(dart analyze lib/violations.dart lib/violations_metrics.dart || true)"
+          echo "$out"
+          for rule in hl_notifier_suffix hl_notifier_void_methods hl_no_static_singleton \
+            hl_max_function_length hl_max_cyclomatic_complexity hl_max_nesting hl_max_parameters; do
+            echo "$out" | grep -q " $rule\$" || { echo "missing $rule"; exit 1; }
+          done
+          # Both limits are exercised: a notifier build() gets the function
+          # limit (30), not the widget build limit (50).
+          echo "$out" | grep -q 'Function "long" has 31 lines of code, over the function limit of 30' \
+            || { echo "missing function limit message"; exit 1; }
+          echo "$out" | grep -q 'Function "build" has 31 lines of code, over the function limit of 30' \
+            || { echo "missing notifier build message"; exit 1; }

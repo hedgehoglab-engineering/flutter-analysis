@@ -33,8 +33,10 @@ jobs:
       - name: Format
         run: dart format --output=none --set-exit-if-changed .
 
+      # Only the root package's own sources; plugin/ is a separate package with
+      # its own dependencies, analysed by the plugin workflow.
       - name: Analyse package
-        run: dart analyze --fatal-infos . 2>&1 | tee analyze-root.log
+        run: dart analyze --fatal-infos lib 2>&1 | tee analyze-root.log
 
       - name: Analyse example
         run: dart analyze --fatal-infos example 2>&1 | tee analyze-example.log

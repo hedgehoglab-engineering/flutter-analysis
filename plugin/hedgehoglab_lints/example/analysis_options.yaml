@@ -1,0 +1,5 @@
+# The plugin is listed here, in the consuming project's own file. See
+# ../README.md ("Enabling it") for the git form and the include findings.
+plugins:
+  hedgehoglab_lints:
+    path: ..
