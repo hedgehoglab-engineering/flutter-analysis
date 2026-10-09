@@ -6,19 +6,27 @@ It is built on the `analysis_server_plugin` API (Dart 3.10 / Flutter 3.38 and la
 
 ## Rules
 
-All rules are warnings, are enabled as soon as the plugin is, and apply to hand-written files under `lib/` (generated `*.g.dart` and `*.freezed.dart` files are skipped). Standards IDs refer to [standards/04-state-management.md](https://github.com/hedgehoglab-engineering/flutter-standards/blob/main/standards/04-state-management.md); the source does not print numeric IDs, so `STATE-nnn` is the rule's position in that file (001 generate with `@riverpod`, 002 no singletons, 003 `keepAlive`, 004 file grouping, 005 suffix, 006 method naming, 007 void returns).
+All rules are warnings, are enabled as soon as the plugin is, and apply to hand-written files under `lib/` (generated `*.g.dart` and `*.freezed.dart` files are skipped).
+
+Standards IDs (`STATE-002` and so on) are the rule IDs of the Quilltrail standards catalogue, at the catalogue revision recorded in [`standards.lock.json`](standards.lock.json) (repository, commit, tag and policy version). Each standards lint is also pinned to the rule's `content_hash`, computed the way Quilltrail computes it (SHA-256 of the rule's title, tag and trimmed body). When a standard is edited its hash changes, `tool/verify_standards_pin.dart` fails, and the lint gets re-reviewed against the new text before the lock is updated. See "Standards pin" below.
 
 | Rule | Standard | Reports |
 |---|---|---|
 | `hl_notifier_suffix` | STATE-005 | A `@riverpod` class extending a generated `_$Name` base whose name does not end in `Notifier`. |
 | `hl_notifier_void_methods` | STATE-007 | A public method on such a class declared to return anything other than `void`, `Future<void>` or `FutureOr<void>`. Exempt: `build`, `@override`, static, private, getters, setters, operators, and methods with no declared return type. |
 | `hl_no_static_singleton` | STATE-002 | A non-`const` static field that holds an instance of its own class, when it is not `final`, is named `instance`/`shared`/`singleton` (leading underscore allowed), or the class has mutable instance fields. |
-| `hl_max_function_length` | metric | More than 50 source lines of code in a function or method (blank and comment-only lines excluded). |
+| `hl_max_function_length` | metric | More than 30 source lines of code in a function or method, or more than 50 in a Flutter widget `build` method (blank and comment-only lines excluded). The message says which limit applied. |
 | `hl_max_cyclomatic_complexity` | metric | Cyclomatic complexity above 20: 1 plus each `if`, loop, `case`, `catch`, `?:`, `&&`, `||`, `??`. |
 | `hl_max_nesting` | metric | Control flow (`if`, loops, `switch`, `try`) nested more than 5 deep. `else if` does not add depth. |
 | `hl_max_parameters` | metric | More than 4 parameters, positional or named. Constructors and `@override` members are not measured. |
 
-STATE-005 and STATE-007 match syntactically (`@riverpod` or `@Riverpod(...)` plus `extends _$Name`), so they work before `build_runner` has run. STATE-002 is deliberately conservative: it only looks at a field whose own type is the enclosing class, so a static `Map` cache, a `const` value, or `static final zero = Money(0)` on an immutable class is not reported. A static field holding some other mutable object would need data-flow analysis and is out of scope. Metric limits are constants in `lib/src/limits.dart` and match the `dart_code_linter` defaults; they are not per-project options (the plugin API has no structured rule configuration, only on/off). Use `// ignore: hl_max_parameters` for a justified exception.
+STATE-005 and STATE-007 match syntactically (`@riverpod` or `@Riverpod(...)` plus `extends _$Name`), so they work before `build_runner` has run. STATE-002 is deliberately conservative: it only looks at a field whose own type is the enclosing class, so a static `Map` cache, a `const` value, or `static final zero = Money(0)` on an immutable class is not reported. A static field holding some other mutable object would need data-flow analysis and is out of scope. Metric limits are constants in `lib/src/limits.dart`; they are not per-project options (the plugin API has no structured rule configuration, only on/off).
+
+A widget `build` is a non-static method named `build` whose resolved return type is `Widget` (from `package:flutter`) or a subtype, which covers `StatelessWidget`, `State` and `ConsumerWidget` builds. It keeps the 50-line limit because widget trees nest by nature. Every other function gets 30, including a Riverpod notifier's `build()` (it returns state, not a widget) and helpers such as `_buildBody()` that return widgets but are not named `build`. Extracting a sub-widget is the usual fix for an over-long build.
+
+### Exceptions
+
+Exceptions are allowed but need human approval. The mechanism is `// ignore: hl_<rule>` (or `// ignore_for_file:`) with a reason. In a project that uses the agentic toolkit, the switch-off check fails any change that adds an `// ignore:` unless a human has applied the `rule-exception` label to the PR. That check lives in the toolkit, not in this plugin; the plugin only reports. Disabling a rule project-wide through `diagnostics:` in `analysis_options.yaml` is a switch-off too, and is not an exception route.
 
 ### Why the metrics are our own
 
@@ -74,9 +82,27 @@ Both loaded together in a test project. The `riverpod_lint` entry in `dev_depend
 
 The plugin has its own version in `pubspec.yaml`, independent of the root package. Release by tagging `hedgehoglab_lints-vX.Y.Z`; projects pin that tag in `ref:`. New rules are warnings, so adding one can fail a project that gates on warnings: bump the minor version for a new rule or a tighter limit, the patch version for a false-positive fix, and say which projects need work in the release notes.
 
+Policy: violations are fixed when a project adopts the plugin or when a rule or limit changes. There are no baselines and no tolerated trailing warnings; a project that cannot fix a violation uses an approved exception (see "Exceptions"). A new rule or a tighter limit is a minor version bump, and its release notes must say that adopting projects fix all resulting violations in the upgrade PR.
+
+## Standards pin
+
+`standards.lock.json` records the catalogue revision and, per standards rule, `{file, title, content_hash, lints}`. Quilltrail pins its catalogue the same way (`.quilltrail/standards/catalog-pin.json`, and `{id, file, title, binding, content_hash}` per rule in `standards/provenance.json`), so IDs and hashes here match what a Quilltrail project records.
+
+Two checks:
+
+* `dart test` (offline) checks that every standards rule class prints an ID that is in the lock, and that every lock entry names lints that are registered.
+* `tool/verify_standards_pin.dart` recomputes each hash and fails on a mismatch, which means a standard changed and its lint needs re-reviewing. By default it fetches the rule files at the pinned commit with `gh` (needs read access to the catalogue repository). Offline alternatives: `--standards-dir DIR` for a checkout of the catalogue's `standards/` folder, or `--provenance FILE` to compare against a project's `standards/provenance.json` (which also checks the commit and policy version).
+
+```sh
+dart run tool/verify_standards_pin.dart
+dart run tool/verify_standards_pin.dart --provenance ../bnf-flutter/standards/provenance.json
+```
+
+The hash algorithm was read from Quilltrail's `resolve_standards.dart` and confirmed by reproducing the STATE-002, 005 and 007 hashes from the pinned commit and from bnf-flutter's `provenance.json`.
+
 ## Adding a rule
 
-Create `lib/src/rules/<name>.dart` with an `AnalysisRule` subclass (a `static const LintCode` with `severity: DiagnosticSeverity.WARNING`, a `hl_` snake_case name, and the standards ID at the start of the message) and a `SimpleAstVisitor`; register it in `lib/main.dart` with `registerWarningRule`. Add a test class to `test/` extending `AnalysisRuleTest` with a positive case, a negative case and an edge case, add the rule to the table above, and add a violating example to `example/lib/violations.dart` (the CI example job checks that every rule fires there). Only add a rule if it can be made reliable with a syntactic or resolved-type check; if it needs a heuristic, document the heuristic in the class comment and keep it conservative.
+Create `lib/src/rules/<name>.dart` with an `AnalysisRule` subclass (a `static const LintCode` with `severity: DiagnosticSeverity.WARNING`, a `hl_` snake_case name, and the Quilltrail rule ID at the start of the message for a standards rule) and a `SimpleAstVisitor`; add it to `allRules()` in `lib/src/rules.dart`. For a standards rule, also add its entry to `standards.lock.json` (copy the hash from the catalogue's `provenance.json` and confirm with `tool/verify_standards_pin.dart`) and to `standardsRules` in `test/standards_lock_test.dart`. Add a test class to `test/` extending `AnalysisRuleTest` with a positive case, a negative case and an edge case, add the rule to the table above, and add a violating example to `example/lib/violations.dart` (the CI example job checks that every rule fires there). Only add a rule if it can be made reliable with a syntactic or resolved-type check; if it needs a heuristic, document the heuristic in the class comment and keep it conservative.
 
 ## Development
 
@@ -85,5 +111,6 @@ dart pub get
 dart format .
 dart analyze
 dart test
-cd example && dart pub get && dart analyze   # 7 warnings, all from violations*.dart
+dart run tool/verify_standards_pin.dart --provenance /path/to/provenance.json
+cd example && dart pub get && dart analyze   # 8 warnings, all from violations*.dart
 ```

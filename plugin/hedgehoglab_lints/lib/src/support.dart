@@ -4,6 +4,7 @@ import 'package:analyzer/analysis_rule/rule_visitor_registry.dart';
 import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/dart/ast/token.dart';
 import 'package:analyzer/dart/ast/visitor.dart';
+import 'package:analyzer/dart/element/type.dart';
 import 'package:analyzer/source/line_info.dart';
 
 /// Files produced by code generation. Rules skip them: the author cannot act
@@ -86,4 +87,22 @@ void registerFunctionVisitor(
   registry
     ..addFunctionDeclaration(rule, visitor)
     ..addMethodDeclaration(rule, visitor);
+}
+
+/// Whether [node] is a Flutter widget `build` method: named `build`, an
+/// instance method, with a resolved return type of `Widget` (from
+/// `package:flutter`) or a subtype. This covers `StatelessWidget`, `State` and
+/// `ConsumerWidget` builds. A Riverpod notifier's `build()` returns state, not a
+/// widget, so it is not one.
+bool isWidgetBuild(MethodDeclaration node) {
+  if (node.name.lexeme != 'build' || node.isStatic) return false;
+  final returnType = node.declaredFragment?.element.returnType;
+  if (returnType is! InterfaceType) return false;
+  return [returnType, ...returnType.allSupertypes].any(_isFlutterWidget);
+}
+
+bool _isFlutterWidget(InterfaceType type) {
+  final element = type.element;
+  return element.name == 'Widget' &&
+      element.library.uri.toString().startsWith('package:flutter/');
 }

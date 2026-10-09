@@ -23,32 +23,181 @@ String _functionOfLines(int lines) =>
 @reflectiveTest
 class MaxFunctionLengthTest extends AnalysisRuleTest {
   @override
+  bool get addFlutterPackageDep => true;
+
+  @override
   void setUp() {
     rule = MaxFunctionLength();
     super.setUp();
   }
 
+  /// [lines] source lines inside braces, i.e. a body of that many lines
+  /// including both braces.
+  String _body(int lines, [String? returns]) {
+    final prints = returns == null ? lines - 2 : lines - 3;
+    final ret = returns == null ? '' : '    return $returns;\n';
+    return '{\n${'    print(1);\n' * prints}$ret  }';
+  }
+
   Future<void> test_overLimit() async {
-    final code = _functionOfLines(51);
+    final code = _functionOfLines(31);
     await assertDiagnostics(code, [
-      lint(at(code, 'f()'), 1, messageContainsAll: ['51', '50']),
+      lint(
+        at(code, 'f()'),
+        1,
+        messageContainsAll: ['31', 'function limit of 30'],
+      ),
     ]);
   }
 
   Future<void> test_atLimit() async =>
-      assertNoDiagnostics(_functionOfLines(50));
+      assertNoDiagnostics(_functionOfLines(30));
 
   /// Edge: blank lines and comments do not count towards the limit.
   Future<void> test_blankAndCommentLinesIgnored() async {
     final code =
-        'void f() {\n${'  // note\n\n' * 40}${'  print(1);\n' * 48}}\n';
+        'void f() {\n${'  // note\n\n' * 40}${'  print(1);\n' * 28}}\n';
     await assertNoDiagnostics(code);
   }
 
   Future<void> test_methodsAreMeasured() async {
-    final body = '  print(1);\n' * 50;
+    final body = '  print(1);\n' * 30;
     final code = 'class A {\n  void run() {\n$body  }\n}\n';
     await assertDiagnostics(code, [lint(at(code, 'run'), 3)]);
+  }
+
+  Future<void> test_widgetBuild_atWidgetLimit() async {
+    final code =
+        """
+import 'package:flutter/widgets.dart';
+class W extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) ${_body(50, 'const SizedBox()')}
+}
+""";
+    await assertNoDiagnostics(code);
+  }
+
+  Future<void> test_widgetBuild_overWidgetLimit() async {
+    final code =
+        """
+import 'package:flutter/widgets.dart';
+class W extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) ${_body(51, 'const SizedBox()')}
+}
+""";
+    await assertDiagnostics(code, [
+      lint(
+        at(code, 'build'),
+        5,
+        messageContainsAll: ['51', 'widget build limit of 50'],
+      ),
+    ]);
+  }
+
+  /// A widget build between 31 and 50 lines is allowed.
+  Future<void> test_widgetBuild_overFunctionLimitIsAllowed() async {
+    final code =
+        """
+import 'package:flutter/widgets.dart';
+class W extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) ${_body(40, 'const SizedBox()')}
+}
+""";
+    await assertNoDiagnostics(code);
+  }
+
+  Future<void> test_stateBuild_getsWidgetLimit() async {
+    final code =
+        """
+import 'package:flutter/widgets.dart';
+class W extends StatefulWidget {
+  @override
+  State<W> createState() => _S();
+}
+class _S extends State<W> {
+  @override
+  Widget build(BuildContext context) ${_body(45, 'const SizedBox()')}
+}
+""";
+    await assertNoDiagnostics(code);
+  }
+
+  /// Subtype return types and indirect widget bases (a `ConsumerWidget` is a
+  /// `StatelessWidget` subclass) are widget builds.
+  Future<void> test_widgetSubtypeReturnAndIndirectBase() async {
+    final code =
+        """
+import 'package:flutter/widgets.dart';
+abstract class ConsumerWidget extends StatelessWidget {
+  const ConsumerWidget();
+}
+class W extends ConsumerWidget {
+  @override
+  SizedBox build(BuildContext context) ${_body(45, 'const SizedBox()')}
+}
+""";
+    await assertNoDiagnostics(code);
+  }
+
+  /// A Riverpod notifier's `build()` returns state, not a widget: 30 applies.
+  Future<void> test_notifierBuild_overFunctionLimit() async {
+    final code =
+        """
+$riverpodStub
+@riverpod
+class CartNotifier extends _\$CartNotifier {
+  int build() ${_body(31, '0')}
+}
+""";
+    await assertDiagnostics(code, [
+      lint(
+        at(code, 'build'),
+        5,
+        messageContainsAll: ['31', 'function limit of 30'],
+      ),
+    ]);
+  }
+
+  Future<void> test_notifierBuild_atLimit() async {
+    final code =
+        """
+$riverpodStub
+@riverpod
+class CartNotifier extends _\$CartNotifier {
+  int build() ${_body(30, '0')}
+}
+""";
+    await assertNoDiagnostics(code);
+  }
+
+  /// Only a method named exactly `build` qualifies: a `Widget` helper gets 30.
+  Future<void> test_widgetHelperMethod_getsFunctionLimit() async {
+    final code =
+        """
+import 'package:flutter/widgets.dart';
+class W extends StatelessWidget {
+  Widget _buildBody() ${_body(31, 'const SizedBox()')}
+  @override
+  Widget build(BuildContext context) => _buildBody();
+}
+""";
+    await assertDiagnostics(code, [
+      lint(at(code, '_buildBody()'), 10, messageContainsAll: ['31', '30']),
+    ]);
+  }
+
+  /// A `build` that does not return a widget, outside Riverpod, gets 30.
+  Future<void> test_nonWidgetBuild_getsFunctionLimit() async {
+    final code =
+        """
+class Builder {
+  String build() ${_body(31, "''")}
+}
+""";
+    await assertDiagnostics(code, [lint(at(code, 'build'), 5)]);
   }
 }
 

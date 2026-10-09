@@ -1,0 +1,28 @@
+{
+  "catalog": {
+    "repository": "hedgehoglab-engineering/flutter-standards",
+    "commit": "67839f58358677304d85c8aeb484af9ebae42ea7",
+    "tag": "feat/quilltrail-catalog-reference",
+    "policy_version": "2026.09.2"
+  },
+  "rules": {
+    "STATE-002": {
+      "file": "04-state-management.md",
+      "title": "Never hold app state in a singleton",
+      "content_hash": "c9b37909d9fae3993c17d9d898ba7616fbee239c0ae67373e800b568014dbd2d",
+      "lints": ["hl_no_static_singleton"]
+    },
+    "STATE-005": {
+      "file": "04-state-management.md",
+      "title": "Suffix notifier classes `Notifier`",
+      "content_hash": "195e65fce7c980f705ee1bcaf30868b3dc02f02525e82a22084cc5877e548bc5",
+      "lints": ["hl_notifier_suffix"]
+    },
+    "STATE-007": {
+      "file": "04-state-management.md",
+      "title": "Public notifier methods must not return a value",
+      "content_hash": "e7fb716974d6778bd9669b61ea6f47b1ac3c6bba33b2d8bc01551a984f9f8ae8",
+      "lints": ["hl_notifier_void_methods"]
+    }
+  }
+}
