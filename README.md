@@ -25,6 +25,10 @@ This will ensure you always use the latest version of the lints. If you wish to 
 include: package:netsells_flutter_analysis/analysis_options.4.0.0.yaml
 ```
 
+## Analyzer plugin
+
+`plugin/hedgehoglab_lints/` is a separate package: an analyzer plugin that turns code-metric limits and the mechanically checkable Flutter standards into warnings from `dart analyze`. See its [README](plugin/hedgehoglab_lints/README.md). It is independent of the lint set above.
+
 ## Suppressing Lints
 
 There may be cases where specific lint rules are undesirable. Lint rules can be surpressed at the line, file, or project level.
